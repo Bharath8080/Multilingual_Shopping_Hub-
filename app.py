@@ -84,7 +84,7 @@ def fetch_high_quality_image(query):
         return None
 
 # Function to fetch products using Serper API
-def fetch_products(query, num_results=10, page=1):
+def fetch_products(query, num_results=20, page=1):
     url = "https://google.serper.dev/shopping"
     payload = {
         "q": query,
@@ -247,12 +247,12 @@ if "products_data" not in st.session_state:
 if "search_query" not in st.session_state:
     st.session_state.search_query = "nike shoes"
 if "num_results" not in st.session_state:
-    st.session_state.num_results = 10  # Default value
+    st.session_state.num_results = 20  # Default value
 
 # Sidebar for settings
 with st.sidebar:
     st.markdown(
-        f'<h1>🛍️ Multilingual Shopping Hub</h1>',
+        f'<h1>🛍️ Shopping Hub</h1>',
         unsafe_allow_html=True
     )
     
