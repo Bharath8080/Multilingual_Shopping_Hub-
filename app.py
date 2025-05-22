@@ -248,6 +248,10 @@ if "search_query" not in st.session_state:
     st.session_state.search_query = "nike shoes"
 if "num_results" not in st.session_state:
     st.session_state.num_results = 20  # Default value
+if "min_price" not in st.session_state:
+    st.session_state.min_price = 0
+if "max_price" not in st.session_state:
+    st.session_state.max_price = 1000
 
 # Sidebar for settings
 with st.sidebar:
@@ -285,12 +289,35 @@ with st.sidebar:
                            help="Select how many products you want to see")
     st.session_state.num_results = num_results  # Store the user's preference
     
+    # Price range selector
+    st.markdown("### Price Range")
+    col1, col2 = st.columns(2)
+    with col1:
+        min_price = st.number_input("Min Price ($)", 
+                                  min_value=0, 
+                                  max_value=10000, 
+                                  value=st.session_state.min_price,
+                                  step=10,
+                                  help="Minimum price in dollars")
+    with col2:
+        max_price = st.number_input("Max Price ($)", 
+                                  min_value=0, 
+                                  max_value=10000, 
+                                  value=st.session_state.max_price,
+                                  step=10,
+                                  help="Maximum price in dollars")
+    
+    # Update session state with price range
+    st.session_state.min_price = min_price
+    st.session_state.max_price = max_price
+    
     # Language selector
     st.markdown("### Language Settings")
     selected_language = st.selectbox("Select language:", languages)
     
     st.divider()
     st.markdown(f"Currently viewing products in: **{selected_language}**")
+    st.markdown(f"Price range: **${min_price} - ${max_price}**")
     
     # About section
     with st.expander("About Multilingual Shopping Hub"):
@@ -337,44 +364,70 @@ if search_button or (not st.session_state.products_data and st.session_state.ser
             else:
                 st.warning("No products found. Try a different search term.")
 
+# Function to filter products by price
+def filter_products_by_price(products, min_price, max_price):
+    filtered_products = []
+    for product in products:
+        try:
+            # Extract price from the price string (e.g., "$100.00" -> 100.00)
+            price_str = product.get('price', '')
+            if price_str:
+                # Remove currency symbol and any text, keep only numbers
+                price = float(''.join(filter(lambda x: x.isdigit() or x == '.', price_str)))
+                if min_price <= price <= max_price:
+                    filtered_products.append(product)
+        except (ValueError, TypeError):
+            continue
+    return filtered_products
+
 # Display products content
 if st.session_state.products_data:
-    # Check if translation is needed
-    if selected_language != "English" and st.session_state.sutra_api_key:
-        with st.spinner(f"Translating products to {selected_language}..."):
-            translated_products = translate_products(
-                st.session_state.products_data, 
-                selected_language,
-                st.session_state.sutra_api_key
-            )
+    # Filter products by price
+    filtered_products = filter_products_by_price(
+        st.session_state.products_data,
+        st.session_state.min_price,
+        st.session_state.max_price
+    )
+    
+    if not filtered_products:
+        st.warning(f"No products found in the price range ${st.session_state.min_price} - ${st.session_state.max_price}")
     else:
-        # Display English products (or show message if Sutra API key is missing)
-        if selected_language != "English" and not st.session_state.sutra_api_key:
-            st.warning("Please enter your Sutra API key in the sidebar to translate products.")
-        
-        # Format and display the original products with improved layout
-        products_container = st.container()
-        for i, product in enumerate(st.session_state.products_data):
-            rating_stars = get_stars(float(product.get('rating', 0))) if product.get('rating') else ""
-            st.markdown(f"""
-                <div class="product-card">
-                    <div style="display: flex; gap: 20px;">
-                        <div style="flex: 3;">
-                            <h3 class="product-title">{i+1}. {product.get('title', 'No Title')}</h3>
-                            <p class="product-info">🏪 <strong>Store:</strong> {product.get('source', 'Unknown')}</p>
-                            <p class="product-price">💰 <strong>Price:</strong> {product.get('price', 'Price not available')}</p>
-                            <p class="product-delivery">🚚 <strong>Delivery:</strong> {product.get('delivery', 'Delivery info not available')}</p>
-                            {f'<p class="product-rating"><span class="stars">{rating_stars}</span> <strong>Rating:</strong> {product["rating"]} ({product.get("ratingCount", 0)} reviews)</p>' if product.get('rating') else ''}
-                            <p><a href="{product.get('link', '#')}" class="product-link" target="_blank">🛒 View Product</a></p>
-                        </div>
-                        <div style="flex: 2;">
-                            <div class="image-container">
-                                <img src="{product.get('imageUrl')}" alt="Product Image">
+        # Check if translation is needed
+        if selected_language != "English" and st.session_state.sutra_api_key:
+            with st.spinner(f"Translating products to {selected_language}..."):
+                translated_products = translate_products(
+                    filtered_products, 
+                    selected_language,
+                    st.session_state.sutra_api_key
+                )
+        else:
+            # Display English products (or show message if Sutra API key is missing)
+            if selected_language != "English" and not st.session_state.sutra_api_key:
+                st.warning("Please enter your Sutra API key in the sidebar to translate products.")
+            
+            # Format and display the original products with improved layout
+            products_container = st.container()
+            for i, product in enumerate(filtered_products):
+                rating_stars = get_stars(float(product.get('rating', 0))) if product.get('rating') else ""
+                st.markdown(f"""
+                    <div class="product-card">
+                        <div style="display: flex; gap: 20px;">
+                            <div style="flex: 3;">
+                                <h3 class="product-title">{i+1}. {product.get('title', 'No Title')}</h3>
+                                <p class="product-info">🏪 <strong>Store:</strong> {product.get('source', 'Unknown')}</p>
+                                <p class="product-price">💰 <strong>Price:</strong> {product.get('price', 'Price not available')}</p>
+                                <p class="product-delivery">🚚 <strong>Delivery:</strong> {product.get('delivery', 'Delivery info not available')}</p>
+                                {f'<p class="product-rating"><span class="stars">{rating_stars}</span> <strong>Rating:</strong> {product["rating"]} ({product.get("ratingCount", 0)} reviews)</p>' if product.get('rating') else ''}
+                                <p><a href="{product.get('link', '#')}" class="product-link" target="_blank">🛒 View Product</a></p>
+                            </div>
+                            <div style="flex: 2;">
+                                <div class="image-container">
+                                    <img src="{product.get('imageUrl')}" alt="Product Image">
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 else:
     if not st.session_state.serper_api_key:
         st.info("Enter your Serper API key and search for products to get started.")
