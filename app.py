@@ -309,7 +309,7 @@ with st.sidebar:
     if serper_api_key:
         st.session_state.serper_api_key = serper_api_key
     
-    st.markdown("**Sutra API**")
+    st.markdown("**SUTRA API**")
     st.markdown("Get your free API key from [SUTRA API](https://www.two.ai/sutra/api)")
     sutra_api_key = st.text_input("Enter your Sutra API Key:", 
                                   value=st.session_state.sutra_api_key,
